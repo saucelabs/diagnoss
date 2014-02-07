@@ -1,0 +1,38 @@
+{
+  "name": "diagnoss",
+  "description": "Analytic Tracking for Open Source Software",
+  "tags": [
+    "open-source",
+    "oss",
+    "metrics",
+    "analytics"
+  ],
+  "version": "0.1.0",
+  "author": "jlipps@gmail.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saucelabs/diagnoss.git"
+  },
+  "bugs": {
+    "url": "https://github.com/saucelab/diagnoss/issues"
+  },
+  "engines": [
+    "node"
+  ],
+  "main": "lib/main.js",
+  "bin": {
+  },
+  "directories": {
+    "lib": "./lib",
+    "doc": "./docs"
+  },
+  "dependencies": {
+    "lodash": "~2.4.1"
+  },
+  "scripts": {
+    "test": "grunt travis"
+  },
+  "devDependencies": {
+    "mocha": "~1.17.1"
+  }
+}
