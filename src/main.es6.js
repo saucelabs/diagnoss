@@ -20,6 +20,6 @@ async function main () {
 }
 
 export function diagnoss () {
-  main().then(err => { console.log(err.stack); }, err => { console.log(err.stack); });
+  main().then(err => { console.log(err); }, err => { console.log(err); console.log(err.stack); });
   //asyncify(main);
 }

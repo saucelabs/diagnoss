@@ -31,7 +31,7 @@
     "asyncbox": "^1.0.8",
     "babel-runtime": "^4.7.16",
     "github": "^0.2.3",
-    "lodash": "~2.4.1",
+    "lodash": "^3.5.0",
     "moment": "^2.9.0",
     "octonode": "^0.5.2",
     "q": "^1.2.0",

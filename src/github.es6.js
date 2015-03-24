@@ -13,6 +13,10 @@ export class GitHub {
   search () {
     return new GitHubSearch(this.opts);
   }
+
+  issue (user, repo, number) {
+    return new GitHubIssue(this.opts, user, repo, number);
+  }
 }
 
 class GitHubClient {
@@ -34,7 +38,8 @@ class GitHubClient {
       password: this.password,
     });
     let actualRequest = (opts) => {
-      console.error(`Calling ${method} with ${JSON.stringify(apiOpts)}`);
+      console.error(`Calling ${this.clientType}.${method} with ` +
+                    `${JSON.stringify(apiOpts)}`);
       return Q.ninvoke(this.client[this.clientType], method, opts);
     };
     if (allResults) {
@@ -44,12 +49,13 @@ class GitHubClient {
       let results = [];
       while (!done) {
         let res = await actualRequest(apiOpts);
-        if (res.length === 0) {
-          done = true;
-        } else {
+        if (res.length !== 0) {
           results = results.concat(res);
-          apiOpts.page++;
         }
+        if (res.length < apiOpts.per_page) {
+          done = true;
+        }
+        apiOpts.page++;
       }
       return results;
     } else {
@@ -67,6 +73,25 @@ class GitHubSearch extends GitHubClient {
   issues (q, opts) {
     opts.q = q;
     return this.doRequest('issues', opts);
+  }
+}
+
+class GitHubIssue extends GitHubClient {
+  constructor (opts, user, repo, number) {
+    super(opts);
+    this.clientType = 'issues';
+    Object.assign(this, {user, repo, number});
+  }
+
+  doRequest (method, apiOpts = {}, allResults = false) {
+    apiOpts.number = this.number;
+    apiOpts.user = this.user;
+    apiOpts.repo = this.repo;
+    return super.doRequest(method, apiOpts, allResults);
+  }
+
+  comments (allResults = false) {
+    return this.doRequest('getComments', {}, allResults);
   }
 }
 
