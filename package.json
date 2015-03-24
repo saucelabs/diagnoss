@@ -19,20 +19,37 @@
   "engines": [
     "node"
   ],
-  "main": "lib/main.js",
+  "main": "dist/main.js",
   "bin": {
+    "diagnoss": "./bin/diagnoss.js"
   },
   "directories": {
-    "lib": "./lib",
+    "lib": "./src",
     "doc": "./docs"
   },
   "dependencies": {
-    "lodash": "~2.4.1"
+    "asyncbox": "^1.0.8",
+    "babel-runtime": "^4.7.16",
+    "github": "^0.2.3",
+    "lodash": "~2.4.1",
+    "moment": "^2.9.0",
+    "octonode": "^0.5.2",
+    "q": "^1.2.0",
+    "source-map-support": "^0.2.10",
+    "yargs": "^3.6.0"
   },
   "scripts": {
     "test": "grunt travis"
   },
   "devDependencies": {
-    "mocha": "~1.17.1"
+    "clear": "0.0.1",
+    "gulp": "^3.8.11",
+    "gulp-babel": "^4.0.0",
+    "gulp-concat": "^2.5.2",
+    "gulp-insert-lines": "0.0.4",
+    "gulp-rename": "^1.2.0",
+    "gulp-sourcemaps": "^1.3.0",
+    "mocha": "~1.17.1",
+    "run-sequence": "^1.0.2"
   }
 }
