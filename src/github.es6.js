@@ -1,5 +1,7 @@
 import Q from 'q';
 import GHApi from 'github';
+import moment from 'moment';
+import { sleep } from 'asyncbox';
 
 export class GitHub {
   constructor (opts) {
@@ -23,6 +25,7 @@ class GitHubClient {
   constructor (opts) {
     Object.assign(this, opts);
     this.clientType = null;
+    this.apiResultListWrapper = null;
     this.client = new GHApi({
       version: "3.0.0"
     });
@@ -37,10 +40,26 @@ class GitHubClient {
       username: this.username,
       password: this.password,
     });
-    let actualRequest = (opts) => {
-      console.error(`Calling ${this.clientType}.${method} with ` +
+    let actualRequest = async (opts) => {
+      console.error(`  --> ${this.clientType}.${method} ` +
                     `${JSON.stringify(apiOpts)}`);
-      return Q.ninvoke(this.client[this.clientType], method, opts);
+      let res;
+      try {
+        res = await Q.ninvoke(this.client[this.clientType], method, opts);
+      } catch (nonStdErr) {
+        let newErr = new Error(nonStdErr.message);
+        throw newErr;
+      }
+      if (res.meta['x-ratelimit-reset']) {
+        let remaining = parseInt(res.meta['x-ratelimit-remaining'], 10);
+        if (remaining < 2) {
+          let until = moment.unix(parseInt(res.meta['x-ratelimit-reset'], 10));
+          let ms = until.diff(moment(Date.now()));
+          console.error("      [getting rate-limited, waiting " + ms + "ms]");
+          await sleep(ms);
+        }
+      }
+      return res;
     };
     if (allResults) {
       apiOpts.page = 1;
@@ -49,6 +68,9 @@ class GitHubClient {
       let results = [];
       while (!done) {
         let res = await actualRequest(apiOpts);
+        if (this.apiResultListWrapper) {
+          res = res[this.apiResultListWrapper];
+        }
         if (res.length !== 0) {
           results = results.concat(res);
         }
@@ -68,11 +90,12 @@ class GitHubSearch extends GitHubClient {
   constructor (opts) {
     super(opts);
     this.clientType = 'search';
+    this.apiResultListWrapper = 'items';
   }
 
-  issues (q, opts) {
+  issues (q, opts, allResults = false) {
     opts.q = q;
-    return this.doRequest('issues', opts);
+    return this.doRequest('issues', opts, allResults);
   }
 }
 

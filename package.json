@@ -28,7 +28,7 @@
     "doc": "./docs"
   },
   "dependencies": {
-    "asyncbox": "^1.0.8",
+    "asyncbox": "^1.0.9",
     "babel-runtime": "^4.7.16",
     "github": "^0.2.3",
     "lodash": "^3.5.0",

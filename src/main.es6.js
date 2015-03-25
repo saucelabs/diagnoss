@@ -5,8 +5,7 @@ import { asyncify } from 'asyncbox';
 
 async function main () {
   let opts = yargs.argv;
-  let org = opts.u;
-  let repo = opts.r;
+  let repos = opts.r.split(',');
   let fromDate = moment(opts.t1);
   let toDate = moment(opts.t2);
   if (opts.c) {
@@ -14,12 +13,11 @@ async function main () {
     if (typeof opts.c === "string") {
       users = opts.c.split(',');
     }
-    let stats = await collaboratorStats(org, repo, users, fromDate, toDate);
+    let stats = await collaboratorStats(repos, users, fromDate, toDate);
     console.log(stats);
   }
 }
 
 export function diagnoss () {
-  main().then(err => { console.log(err); }, err => { console.log(err); console.log(err.stack); });
-  //asyncify(main);
+  asyncify(main);
 }

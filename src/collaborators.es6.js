@@ -1,25 +1,72 @@
-import util from 'util';
 import _ from 'lodash';
 import moment from 'moment';
 import { GitHub } from './github';
 import { parallel } from 'asyncbox';
 
-export async function collaboratorStats (user, repoName, collabs, t1, t2) {
+export async function collaboratorStats (repoList, collabs, t1, t2) {
   let stats = {};
   let client = new GitHub({
     username: process.env.GITHUB_USER,
     password: process.env.GITHUB_ACCESS_TOKEN
   });
+  for (let repo of repoList) {
+    stats[repo] = await statsForRepo(client, repo, collabs, t1, t2);
+  }
+  if (_.keys(stats).length === 1) {
+    return stats[_.keys(stats)[0]];
+  }
+  stats.all = {};
   let duration = moment.duration(t2.diff(t1));
-  let days = duration.asDays();
+  let days = duration.asDays() * 5 / 7; // "work days"
+  for (let c of collabs) {
+    let commits = 0, commitsLines = 0, issuesClosed = 0, issuesCommented = 0,
+        issueComments = 0, issueCommentAvgLen = 0, pullsCommented = 0,
+        pullComments = 0, pullCommentAvgLen = 0;
+    for (let [repo, repoStats] of _.pairs(stats)) {
+      if (repo === 'all') continue;
+      commits += repoStats[c].commits;
+      commitsLines += repoStats[c].commitsTotalLinesOfWork;
+      issuesClosed += repoStats[c].issuesClosed;
+      issuesCommented += repoStats[c].issuesCommented;
+      let newTotalIssueComments = issueComments + repoStats[c].issueComments;
+      issueCommentAvgLen = (issueComments * issueCommentAvgLen) / newTotalIssueComments + (repoStats[c].issueComments * repoStats[c].issueCommentAvgLen) / newTotalIssueComments;
+      issueComments += repoStats[c].issueComments;
+      pullsCommented += repoStats[c].pullsCommented;
+      let newTotalPullComments = pullComments + repoStats[c].pullComments;
+      pullCommentAvgLen = (pullComments * pullCommentAvgLen) / newTotalPullComments + (repoStats[c].pullComments * repoStats[c].pullCommentAvgLen) / newTotalPullComments;
+      pullComments += repoStats[c].pullComments;
+
+    }
+    stats.all[c] = {
+      commits,
+      commitsPerDay: commits / days,
+      commitsTotalLinesOfWork: commitsLines,
+      issuesClosed,
+      issuesClosedPerDay: issuesClosed / days,
+      issuesCommented,
+      issueComments,
+      issueCommentsPerDay: issueComments / days,
+      issueCommentAvgLen,
+      pullsCommented,
+      pullComments,
+      pullCommentsPerDay: pullComments / days,
+      pullCommentAvgLen
+    };
+  }
+  return stats;
+}
+
+async function statsForRepo (client, repoSpec, collabs, t1, t2) {
+  console.error("GETTING STATS FOR: " + repoSpec);
+  console.error("==================");
+  let stats = {};
+  let duration = moment.duration(t2.diff(t1));
+  let days = duration.asDays() * 5 / 7; // "work days"
+  let [user, repoName] = repoSpec.split('/');
   let repo = client.repo(user, repoName);
   if (!collabs) {
     collabs = _.pluck(await repo.collaborators(), 'login');
   }
-  // we want:
-  // comments (num, length)
-  // issues (num closed)
-  // commits (not merge, not changelog; num, changes)
   let commits = await commitsForCollabs(repo, collabs, t1, t2);
   let closed = await issuesClosed(client, user, repoName, collabs, t1, t2);
   let [issuesCommented, prsCommented] = await issuesPullsCommented(client,
@@ -30,6 +77,7 @@ export async function collaboratorStats (user, repoName, collabs, t1, t2) {
     stats[c] = {
       commits: commits[c].length,
       commitsPerDay: commits[c].length / days,
+      commitsTotalLinesOfWork: _.sum(_.pluck(commits[c], 'linesOfWork')),
       issuesClosed: closed[c].length,
       issuesClosedPerDay: closed[c].length / days,
       issuesCommented: issuesCommented[c].length,
@@ -42,6 +90,7 @@ export async function collaboratorStats (user, repoName, collabs, t1, t2) {
       pullCommentAvgLen: prCommentStats[c].avgBody,
     };
   }
+  console.error("");
   return stats;
 }
 
@@ -56,7 +105,9 @@ async function commitsForCollabs (repo, collabs, t1, t2) {
     }
     commits[c] = await repo.commits(c, commitsOpts, true);
     commits[c] = commits[c].filter(validCommit);
-    commits[c] = await fullCommitSet(repo, commits[c]);
+    if (commits[c].length > 0) {
+      commits[c] = await fullCommitSet(repo, commits[c]);
+    }
   }
   return commits;
 }
@@ -80,7 +131,7 @@ async function fullCommitSet (repo, commits) {
       return false;
     }
     allShas.push(f.sha);
-    if (f.author.login !== f.committer.login) {
+    if (!(f.author && f.committer) || f.author.login !== f.committer.login) {
       return false;
     }
     let fileNames = _.pluck(f.files, 'filename');
@@ -97,8 +148,16 @@ async function fullCommitSet (repo, commits) {
     }
     return true;
   }).map(f => {
+    let netLines = f.stats.additions - f.stats.deletions;
+    let linesOfWork = Math.abs(netLines);
+    if (linesOfWork > 500) {
+      // assume more than 500 net lines in a single commit is probably
+      // bringing in 3rd-party code
+      linesOfWork = 0;
+    }
     return {
       sha: f.sha,
+      linesOfWork: linesOfWork,
       additions: f.stats.additions,
       deletions: f.stats.deletions,
       filesChanged: f.files.length,
@@ -117,10 +176,9 @@ async function issuesClosed (client, userName, repoName, collabs, t1, t2) {
         `is:issue ` +
         `is:closed ` +
         `repo:${userName}/${repoName} ` +
-        `updated:>=${t1.format()} ` +
-        `updated:<=${t2.format()}`,
+        `updated:${t1.format()}..${t2.format()}`,
       {}, true);
-    for (let i of res.items) {
+    for (let i of res) {
       issues[c].push(parseIssue(i, c));
     }
     issues[c] = issues[c].filter(i => {
@@ -140,10 +198,9 @@ async function issuesPullsCommented (client, userName, repoName, collabs, t1, t2
     let res = await client.search().issues(
         `commenter:${c} ` +
         `repo:${userName}/${repoName} ` +
-        `updated:>=${t1.format()} ` +
-        `updated:<=${t2.format()}`,
+        `updated:${t1.format()}..${t2.format()}`,
       {}, true);
-    for (let i of res.items) {
+    for (let i of res) {
       if (i.pull_request) {
         prs[c].push(parsePull(i, c));
       } else {
@@ -159,9 +216,17 @@ async function commentStats (client, userName, repoName, issues, collabs, t1, t2
   let comments = {};
   let promises = {};
   let flatIssues = _.flatten(_.values(issues));
+  let issueNums = [];
+  flatIssues = flatIssues.filter(i => {
+    if (!_.contains(issueNums, i.number)) {
+      issueNums.push(i.number);
+      return true;
+    }
+    return false;
+  });
   let shifts = Math.floor(flatIssues.length / 4);
   let shift = 0;
-  for (let issue of _.flatten(_.values(issues))) {
+  for (let issue of flatIssues) {
     let thisShift = shift % shifts;
     if (!promises[thisShift]) {
       promises[thisShift] = [];
@@ -178,8 +243,13 @@ async function commentStats (client, userName, repoName, issues, collabs, t1, t2
     }
     results = results.concat(await parallel(innerPromises));
   }
+  let commenters = {};
   for (let comment of _.flatten(results)) {
     let commenter = comment.user.login;
+    if (!commenters[commenter]) {
+      commenters[commenter] = 0;
+    }
+    commenters[commenter]++;
     let written = moment(comment.created_at);
     if (_.contains(collabs, commenter) && written >= t1 && written <= t2) {
       if (!comments[commenter]) {
@@ -197,34 +267,11 @@ async function commentStats (client, userName, repoName, issues, collabs, t1, t2
         comments: comments[c].length,
         avgBody: _.sum(comments[c]) / comments[c].length
       };
+    } else {
+      stats[c] = {comments: 0, avgBody: 0};
     }
   }
   return stats;
-}
-
-async function issuesForCollabs (client, userName, repoName, collabs, t1, t2) {
-  let issues = {};
-  let prs = {};
-  for (let c of collabs) {
-    issues[c] = [];
-    prs[c] = [];
-    let res = await client.search().issues(
-        `involves:${c} ` +
-        `repo:${userName}/${repoName} ` +
-        `updated:>=${t1.format()} ` +
-        `updated:<=${t2.format()}`,
-      {}, true);
-    for (let i of res.items) {
-      if (i.pull_request) {
-        prs[c].push(parsePull(i, c));
-      } else {
-        issues[c].push(parseIssue(i, c));
-      }
-    }
-    prs[c] = prs[c].filter(validPull);
-    issues[c] = issues[c].filter(validIssue);
-  }
-  return [issues, prs];
 }
 
 function parseIssueOrPr (thing, collaborator) {
@@ -253,14 +300,4 @@ function parseIssue (issue, collaborator) {
 function parsePull (pull, collaborator) {
   let summary = parseIssueOrPr(pull, collaborator);
   return summary;
-}
-
-function validPull (p) {
-  return (!p.created && (
-          (p.assigned && p.state === 'closed') ||
-          p.mentioned));
-}
-
-function validIssue () {
-  return true;
 }
