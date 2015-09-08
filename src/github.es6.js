@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import Q from 'q';
 import GHApi from 'github';
 import moment from 'moment';
@@ -31,7 +32,7 @@ class GitHubClient {
     });
   }
 
-  async doRequest (method, apiOpts = {}, allResults = false) {
+  async doRequest (method, apiOpts = {}, allResults = false, countOnly = false) {
     if (!this.clientType) {
       throw new Error("Client type required");
     }
@@ -46,6 +47,9 @@ class GitHubClient {
       let res;
       try {
         res = await Q.ninvoke(this.client[this.clientType], method, opts);
+        if (res && res.message && res.message === 'Moved Permanently') {
+          throw new Error("This resource was moved!");
+        }
       } catch (nonStdErr) {
         let newErr = new Error(nonStdErr.message);
         throw newErr;
@@ -61,13 +65,35 @@ class GitHubClient {
       }
       return res;
     };
-    if (allResults) {
+    if (!allResults || countOnly) {
+      let res = await actualRequest(apiOpts);
+      if (!countOnly) {
+        return res;
+      }
+      if (_.isEmpty(res)) {
+        return 0;
+      }
+      if (_.isUndefined(res.total_count)) {
+        throw new Error("Asked for count but res didn't have it!");
+      }
+      return res.total_count;
+    } else {
       apiOpts.page = 1;
       apiOpts.per_page = 100;
       let done = false;
       let results = [];
       while (!done) {
-        let res = await actualRequest(apiOpts);
+        let res;
+        try {
+          res = await actualRequest(apiOpts);
+        } catch (e) {
+          if (e.message.indexOf("Only the first") !== -1) {
+            console.error("Only got some results from query!!");
+            return results;
+          } else {
+            throw e;
+          }
+        }
         if (this.apiResultListWrapper) {
           res = res[this.apiResultListWrapper];
         }
@@ -80,8 +106,6 @@ class GitHubClient {
         apiOpts.page++;
       }
       return results;
-    } else {
-      return actualRequest(apiOpts);
     }
   }
 }
@@ -96,6 +120,11 @@ class GitHubSearch extends GitHubClient {
   issues (q, opts, allResults = false) {
     opts.q = q;
     return this.doRequest('issues', opts, allResults);
+  }
+
+  numIssues (q, opts) {
+    opts.q = q;
+    return this.doRequest('issues', opts, false, true);
   }
 }
 
@@ -137,7 +166,8 @@ class GitHubRepo extends GitHubClient {
       apiOpts.author = author;
     }
     Object.assign(apiOpts, opts);
-    return this.doRequest('getCommits', apiOpts, allResults);
+    let res = this.doRequest('getCommits', apiOpts, allResults);
+    return res;
   }
 
   commit (sha) {
@@ -149,7 +179,7 @@ class GitHubRepo extends GitHubClient {
   }
 
   contributors () {
-    return this.doRequest('getContributors');
+    return this.doRequest('getContributors', {}, true);
   }
 
   contributorStats () {

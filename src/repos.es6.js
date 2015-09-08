@@ -34,21 +34,19 @@ export async function repoStats (repoList=[]) {
 }
 
 async function getNumIssuesClosed (client, repoSpec) {
-  let res = await client.search().issues(
-      `is:issue ` +
+  return await client.search().numIssues(
+      `type:issue ` +
       `is:closed ` +
       `repo:${repoSpec}`,
-    {}, true);
-  return res.length;
+    {});
 }
 
 async function getNumPRsMerged (client, repoSpec) {
-  let res = await client.search().issues(
-      `is:pr ` +
-      `is:closed ` +
+  return await client.search().numIssues(
+      `type:pr ` +
+      `is:merged ` +
       `repo:${repoSpec}`,
-    {}, true);
-  return res.length;
+    {});
 }
 
 async function statsForRepo (client, repoSpec) {
