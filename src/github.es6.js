@@ -131,8 +131,11 @@ class GitHubRepo extends GitHubClient {
     return super.doRequest(method, apiOpts, allResults);
   }
 
-  commits (author, opts, allResults = false) {
-    let apiOpts = {author};
+  commits (author = null, opts = {}, allResults = false) {
+    let apiOpts = {};
+    if (author) {
+      apiOpts.author = author;
+    }
     Object.assign(apiOpts, opts);
     return this.doRequest('getCommits', apiOpts, allResults);
   }
@@ -143,5 +146,21 @@ class GitHubRepo extends GitHubClient {
 
   collaborators (opts, allResults = false) {
     return this.doRequest('getCollaborators', opts, allResults);
+  }
+
+  contributors () {
+    return this.doRequest('getContributors');
+  }
+
+  contributorStats () {
+    return this.doRequest('getStatsContributors');
+  }
+
+  participationStats () {
+    return this.doRequest('getStatsParticipation');
+  }
+
+  info () {
+    return this.doRequest('get');
   }
 }
