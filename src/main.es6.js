@@ -2,6 +2,7 @@ import yargs from 'yargs';
 import moment from 'moment';
 import { collaboratorStats } from './collaborators';
 import { repoStats } from './repos';
+import { issueStats } from './issues';
 import { getReposFromPackweb } from './packweb';
 import { asyncify } from 'asyncbox';
 import util from 'util';
@@ -23,6 +24,9 @@ async function main () {
     }
     let stats = await collaboratorStats(repos, users, fromDate, toDate);
     console.log(stats);
+  } else if (opts.issuesByDay) {
+    let stats = await issueStats(repos, {since: opts.issuesByDay});
+    console.log(util.inspect(stats, {depth: 5}));
   } else {
     // default to repo stats
     let stats = await repoStats(repos);
