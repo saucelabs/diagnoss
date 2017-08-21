@@ -9,6 +9,10 @@ export class GitHub {
     this.opts = opts;
   }
 
+  org (org) {
+    return new GitHubOrg(this.opts, org);
+  }
+
   repo (user, repo) {
     return new GitHubRepo(this.opts, user, repo);
   }
@@ -67,6 +71,9 @@ class GitHubClient {
     };
     if (!allResults || countOnly) {
       let res = await actualRequest(apiOpts);
+      if (this.apiResultListWrapper) {
+        res = res[this.apiResultListWrapper];
+      }
       if (!countOnly) {
         return res;
       }
@@ -147,15 +154,35 @@ class GitHubIssue extends GitHubClient {
   }
 }
 
-class GitHubRepo extends GitHubClient {
-  constructor (opts, user, repo) {
+class GitHubOrg extends GitHubClient {
+  constructor (opts, org) {
     super(opts);
     this.clientType = 'repos';
-    Object.assign(this, {user, repo});
+    this.apiResultListWrapper = 'data';
+    Object.assign(this, {org});
   }
 
   doRequest (method, apiOpts = {}, allResults = false) {
-    apiOpts.user = this.user;
+    apiOpts.org = this.org;
+    return super.doRequest(method, apiOpts, allResults);
+  }
+
+  async repos () {
+    let res = await this.doRequest('getForOrg', {type: 'sources'}, true);
+    return res.map(r => r.full_name);
+  }
+}
+
+class GitHubRepo extends GitHubClient {
+  constructor (opts, owner, repo) {
+    super(opts);
+    this.clientType = 'repos';
+    this.apiResultListWrapper = 'data';
+    Object.assign(this, {owner, repo});
+  }
+
+  doRequest (method, apiOpts = {}, allResults = false) {
+    apiOpts.owner = this.owner;
     apiOpts.repo = this.repo;
     return super.doRequest(method, apiOpts, allResults);
   }
