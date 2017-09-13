@@ -238,4 +238,8 @@ class GitHubRepo extends GitHubClient {
   info () {
     return this.doRequest('get');
   }
+
+  releases () {
+    return this.doRequest('getReleases');
+  }
 }

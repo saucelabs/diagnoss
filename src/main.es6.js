@@ -7,6 +7,7 @@ import { issueStats } from './issues';
 import { pullsOverTime, printPullStats } from './pulls';
 import { getReposFromPackweb } from './packweb';
 import { getReposFromOrgs } from './org';
+import { numDownloads } from './releases';
 import { asyncify } from 'asyncbox';
 import util from 'util';
 
@@ -20,8 +21,8 @@ async function main () {
   } else {
     repos = opts.r.split(',');
   }
-  let fromDate = moment(opts.t1);
-  let toDate = moment(opts.t2);
+  let fromDate = opts.t1 ? moment(opts.t1) : null;
+  let toDate = opts.t2 ? moment(opts.t2) : null;
   if (opts.n) {
     // just get basic contributor stats
     let {contributors, numContributors, numCommits} = await contributorStats(repos);
@@ -40,6 +41,9 @@ async function main () {
   } else if (opts.pulls) {
     let stats = await pullsOverTime(repos, {since: fromDate || null, by: 'week'});
     printPullStats(stats);
+  } else if (opts.downloads) {
+    let num = await numDownloads(repos, {since: fromDate, until: toDate});
+    console.log(num);
   } else {
     // default to repo stats
     let stats = await repoStats(repos);
