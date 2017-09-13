@@ -36,6 +36,18 @@ class GitHubClient {
     });
   }
 
+  unwrapRes (res) {
+    // everything seems to be wrapped in a 'data' response now
+    res = res.data;
+    if (!res) {
+      throw new Error("response was not wrapped with 'data' field, look into it");
+    }
+    if (this.apiResultListWrapper) {
+      res = res[this.apiResultListWrapper];
+    }
+    return res;
+  }
+
   async doRequest (method, apiOpts = {}, allResults = false, countOnly = false) {
     if (!this.clientType) {
       throw new Error("Client type required");
@@ -71,9 +83,7 @@ class GitHubClient {
     };
     if (!allResults || countOnly) {
       let res = await actualRequest(apiOpts);
-      if (this.apiResultListWrapper) {
-        res = res[this.apiResultListWrapper];
-      }
+      res = this.unwrapRes(res);
       if (!countOnly) {
         return res;
       }
@@ -101,9 +111,7 @@ class GitHubClient {
             throw e;
           }
         }
-        if (this.apiResultListWrapper) {
-          res = res[this.apiResultListWrapper];
-        }
+        res = this.unwrapRes(res);
         if (res.length !== 0) {
           results = results.concat(res);
         }
@@ -133,6 +141,16 @@ class GitHubSearch extends GitHubClient {
     opts.q = q;
     return this.doRequest('issues', opts, false, true);
   }
+
+  async mergedPulls (repoSpec, sinceDate = null) {
+    // assume sinceDate is ISO8601 format YYYY-MM-DD
+    let q = `repo:${repoSpec} type:pr is:merged`;
+    if (sinceDate) {
+      q += ` merged:>=${sinceDate}`;
+    }
+    return await this.doRequest('issues', {q}, true);
+  }
+
 }
 
 class GitHubIssue extends GitHubClient {
@@ -158,7 +176,7 @@ class GitHubOrg extends GitHubClient {
   constructor (opts, org) {
     super(opts);
     this.clientType = 'repos';
-    this.apiResultListWrapper = 'data';
+    this.apiResultListWrapper = null;
     Object.assign(this, {org});
   }
 
@@ -177,7 +195,7 @@ class GitHubRepo extends GitHubClient {
   constructor (opts, owner, repo) {
     super(opts);
     this.clientType = 'repos';
-    this.apiResultListWrapper = 'data';
+    this.apiResultListWrapper = null;
     Object.assign(this, {owner, repo});
   }
 

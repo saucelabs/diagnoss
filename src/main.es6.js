@@ -4,6 +4,7 @@ import { collaboratorStats } from './collaborators';
 import { contributorStats, printContribStats } from './contributors';
 import { repoStats } from './repos';
 import { issueStats } from './issues';
+import { pullsOverTime, printPullStats } from './pulls';
 import { getReposFromPackweb } from './packweb';
 import { getReposFromOrgs } from './org';
 import { asyncify } from 'asyncbox';
@@ -36,6 +37,9 @@ async function main () {
   } else if (opts.issuesByDay) {
     let stats = await issueStats(repos, {since: opts.issuesByDay});
     console.log(util.inspect(stats, {depth: 5}));
+  } else if (opts.pulls) {
+    let stats = await pullsOverTime(repos, {since: fromDate || null, by: 'week'});
+    printPullStats(stats);
   } else {
     // default to repo stats
     let stats = await repoStats(repos);
