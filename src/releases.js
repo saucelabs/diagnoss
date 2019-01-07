@@ -6,13 +6,13 @@ const client = new GitHub({
   password: process.env.GITHUB_ACCESS_TOKEN
 });
 
-export async function numDownloads(repoList=[], opts={since: null, until: null}) {
+export async function numDownloads (repoList = [], opts = {since: null, until: null}) {
   let count = 0;
   if (!opts.since) {
-    opts.since = "1982-09-26";
+    opts.since = '1982-09-26';
   }
   if (!opts.until) {
-    opts.until = "2182-09-26";
+    opts.until = '2182-09-26';
   }
   let since = moment(opts.since), until = moment(opts.until);
   for (let repoSpec of repoList) {

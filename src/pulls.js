@@ -1,10 +1,11 @@
-import _ from 'lodash'
 import moment from 'moment';
 import { GitHub } from './github';
+import log from 'fancy-log';
 
-const dayFormat = "YYYY-MM-DD";
 
-export async function pullsOverTime (repos=[], opts={since: null, by: 'week'}) {
+const dayFormat = 'YYYY-MM-DD';
+
+export async function pullsOverTime (repos = [], opts = {since: null, by: 'week'}) {
   if (opts.by !== 'week' && opts.by !== 'day') {
     throw new Error("opts.by can only be 'week' or 'day' right now");
   }
@@ -72,11 +73,11 @@ export async function pullsOverTime (repos=[], opts={since: null, by: 'week'}) {
 
 async function mergedPulls (client, repoSpec, since) {
   let search = client.search();
-  return await search.mergedPulls(repoSpec, since.format("YYYY-MM-DD"));
+  return await search.mergedPulls(repoSpec, since.format('YYYY-MM-DD'));
 }
 
 export function printPullStats (dateArr) {
   for (let [date, count] of dateArr) {
-    console.log(`${date}\t${count}`);
+    log(`${date}\t${count}`);
   }
 }
