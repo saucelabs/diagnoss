@@ -1,8 +1,9 @@
 import _ from 'lodash';
-import Q from 'q';
-import GHApi from 'github';
+import GHApi from '@octokit/rest';
 import moment from 'moment';
 import { sleep } from 'asyncbox';
+import log from 'fancy-log';
+
 
 export class GitHub {
   constructor (opts) {
@@ -32,7 +33,7 @@ class GitHubClient {
     this.clientType = null;
     this.apiResultListWrapper = null;
     this.client = new GHApi({
-      version: "3.0.0"
+      version: '3.0.0'
     });
   }
 
@@ -50,32 +51,32 @@ class GitHubClient {
 
   async doRequest (method, apiOpts = {}, allResults = false, countOnly = false) {
     if (!this.clientType) {
-      throw new Error("Client type required");
+      throw new Error('Client type required');
     }
     this.client.authenticate({
-      type: "basic",
+      type: 'basic',
       username: this.username,
       password: this.password,
     });
     let actualRequest = async (opts) => {
-      console.error(`  --> ${this.clientType}.${method} ` +
-                    `${JSON.stringify(apiOpts)}`);
+      log.error(`  --> ${this.clientType}.${method} ` +
+                `${JSON.stringify(apiOpts)}`);
       let res;
       try {
-        res = await Q.ninvoke(this.client[this.clientType], method, opts);
+        res = await this.client[this.clientType][method](opts);
         if (res && res.message && res.message === 'Moved Permanently') {
-          throw new Error("This resource was moved!");
+          throw new Error('This resource was moved!');
         }
       } catch (nonStdErr) {
         let newErr = new Error(nonStdErr.message);
         throw newErr;
       }
-      if (res.meta['x-ratelimit-reset']) {
-        let remaining = parseInt(res.meta['x-ratelimit-remaining'], 10);
+      if (res.headers['x-ratelimit-reset']) {
+        let remaining = parseInt(res.headers['x-ratelimit-remaining'], 10);
         if (remaining < 2) {
-          let until = moment.unix(parseInt(res.meta['x-ratelimit-reset'], 10));
+          let until = moment.unix(parseInt(res.headers['x-ratelimit-reset'], 10));
           let ms = until.diff(moment(Date.now()));
-          console.error("      [getting rate-limited, waiting " + ms + "ms]");
+          log.error('      [getting rate-limited, waiting ' + ms + 'ms]');
           await sleep(ms);
         }
       }
@@ -104,8 +105,8 @@ class GitHubClient {
         try {
           res = await actualRequest(apiOpts);
         } catch (e) {
-          if (e.message.indexOf("Only the first") !== -1) {
-            console.error("Only got some results from query!!");
+          if (e.message.indexOf('Only the first') !== -1) {
+            log.error('Only got some results from query!!');
             return results;
           } else {
             throw e;
@@ -168,7 +169,7 @@ class GitHubIssue extends GitHubClient {
   }
 
   comments (allResults = false) {
-    return this.doRequest('getComments', {}, allResults);
+    return this.doRequest('listComments', {}, allResults);
   }
 }
 
@@ -186,7 +187,7 @@ class GitHubOrg extends GitHubClient {
   }
 
   async repos () {
-    let res = await this.doRequest('getForOrg', {type: 'sources'}, true);
+    let res = await this.doRequest('listForOrg', {type: 'sources'}, true);
     return res.map(r => r.full_name);
   }
 }
@@ -211,7 +212,7 @@ class GitHubRepo extends GitHubClient {
       apiOpts.author = author;
     }
     Object.assign(apiOpts, opts);
-    let res = this.doRequest('getCommits', apiOpts, allResults);
+    let res = this.doRequest('listCommits', apiOpts, allResults);
     return res;
   }
 
@@ -220,19 +221,19 @@ class GitHubRepo extends GitHubClient {
   }
 
   collaborators (opts, allResults = false) {
-    return this.doRequest('getCollaborators', opts, allResults);
+    return this.doRequest('listCollaborators', opts, allResults);
   }
 
   contributors () {
-    return this.doRequest('getContributors', {}, true);
+    return this.doRequest('listContributors', {}, true);
   }
 
   contributorStats () {
-    return this.doRequest('getStatsContributors');
+    return this.doRequest('getContributorsStats');
   }
 
   participationStats () {
-    return this.doRequest('getStatsParticipation');
+    return this.doRequest('getParticipationStats');
   }
 
   info () {
@@ -240,6 +241,6 @@ class GitHubRepo extends GitHubClient {
   }
 
   releases () {
-    return this.doRequest('getReleases');
+    return this.doRequest('listReleases');
   }
 }

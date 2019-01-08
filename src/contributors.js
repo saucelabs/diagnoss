@@ -1,8 +1,9 @@
 import _ from 'lodash';
 import moment from 'moment';
 import { GitHub } from './github';
-import { parallel } from 'asyncbox';
 import { padStr } from './utils';
+import log from 'fancy-log';
+
 
 export async function contributorStats (repoList) {
   let client = new GitHub({
@@ -17,13 +18,16 @@ export async function contributorStats (repoList) {
     try {
       repoStats = await repo.contributorStats();
     } catch (e) {
-      console.warn(`Got error for repo ${r}: ${e.message}; continuing`);
+      log.warn(`Got error for repo ${r}: ${e.message}; continuing`);
       continue;
     }
-    for (let repoStat of repoStats) {
+    if (!_.isArray(repoStats)) {
+      continue;
+    }
+    for (const repoStat of repoStats) {
       let user = repoStat.author.login;
       let count = repoStat.total;
-      let activeWeeks = 0;
+      let activeWeeks = 0; // eslint-disable-line no-unused-vars
       let lastSeenAt = 0;
       if (repoStat.weeks && repoStat.weeks.length > 0) {
         let activeWeekSets = repoStat.weeks.filter(w => w.a || w.d || w.c);
@@ -53,7 +57,7 @@ export async function contributorStats (repoList) {
         if (lastSeenAt > contribMap[user].lastSeenAt) {
           contribMap[user].lastSeentAt = lastSeenAt;
         }
-        numCommits += count
+        numCommits += count;
       } else {
         // if we've never seen the user before, set up everything afresh
         contribMap[user] = {
@@ -80,26 +84,31 @@ export async function contributorStats (repoList) {
 
 export function printContribStats (contributors, numContributors, numCommits) {
   let pad = 30, pad2 = 15;
-  console.log(padStr('User', pad),
-              padStr('Commits', pad2),
-              padStr('Active Weeks', pad2),
-              padStr('Last Seen', pad2),
-              'Commits Most To');
-  let lines = [padStr('----', pad),
-               padStr('-------', pad2),
-               padStr('------------', pad2),
-               padStr('---------', pad2),
-               '---------------'];
-  console.log(...lines);
+  log(padStr('User', pad),
+    padStr('Commits', pad2),
+    padStr('Active Weeks', pad2),
+    padStr('Last Seen', pad2),
+    'Commits Most To'
+  );
+  let lines = [
+    padStr('----', pad),
+    padStr('-------', pad2),
+    padStr('------------', pad2),
+    padStr('---------', pad2),
+    '---------------',
+  ];
+  log(...lines);
   for (let c of contributors) {
     let [user, commits, mostPopularRepo, activeWeeks, lastSeenAt] = c;
-    console.log(padStr('@' + user, pad),
-                padStr(commits, pad2),
-                padStr(activeWeeks, pad2),
-                padStr(moment(lastSeenAt).format('YYYY-MM-DD'), pad2),
-                mostPopularRepo);
+    log(padStr('@' + user, pad),
+      padStr(commits, pad2),
+      padStr(activeWeeks, pad2),
+      padStr(moment(lastSeenAt).format('YYYY-MM-DD'), pad2),
+      mostPopularRepo
+    );
   }
-  console.log(...lines);
-  console.log(padStr(`${numContributors} contributors`, pad),
-              padStr(`${numCommits} commits`, pad2));
+  log(...lines);
+  log(padStr(`${numContributors} contributors`, pad),
+    padStr(`${numCommits} commits`, pad2)
+  );
 }

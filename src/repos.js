@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { GitHub } from './github';
 
-export async function repoStats (repoList=[]) {
+export async function repoStats (repoList = []) {
   let stats = {};
 
   let client = new GitHub({

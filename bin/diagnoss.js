@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-"use strict";
+'use strict';
 
-var diagnoss = require('../dist/main.js').diagnoss;
+let diagnoss = require('../dist/main.js').diagnoss;
 
 diagnoss();

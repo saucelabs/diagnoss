@@ -28,28 +28,45 @@
     "doc": "./docs"
   },
   "dependencies": {
-    "asyncbox": "^1.0.9",
+    "@babel/runtime": "^7.0.0",
+    "@octokit/rest": "^16.3.2",
+    "asyncbox": "^2.5.2",
     "babel-runtime": "^4.7.16",
-    "github": "^9.3.1",
-    "lodash": "^3.5.0",
-    "moment": "^2.17.1",
-    "packweb": "^1.0.6",
-    "q": "^1.2.0",
-    "source-map-support": "^0.2.10",
-    "yargs": "^3.6.0"
+    "bluebird": "^3.5.3",
+    "fancy-log": "^1.3.3",
+    "lodash": "^4.17.11",
+    "moment": "^2.23.0",
+    "packweb": "^1.4.0",
+    "source-map-support": "^0.5.9",
+    "yargs": "^12.0.5"
   },
   "scripts": {
-    "test": "grunt travis"
+    "test": "grunt travis",
+    "clean": "rm -rf node_modules && rm -f package-lock.json && npm install",
+    "build": "gulp transpile",
+    "prepare": "gulp transpile",
+    "lint": "eslint **/*.js",
+    "lint:fix": "eslint **/*.js --fix"
   },
   "devDependencies": {
-    "clear": "0.0.1",
-    "gulp": "^3.8.11",
-    "gulp-babel": "^4.0.0",
+    "@babel/core": "^7.0.0",
+    "@babel/plugin-proposal-class-properties": "^7.2.3",
+    "@babel/plugin-transform-runtime": "^7.2.0",
+    "@babel/preset-env": "^7.2.3",
+    "babel-eslint": "^10.0.1",
+    "babel-plugin-source-map-support": "^2.0.1",
+    "clear": "^0.1.0",
+    "eslint": "^5.12.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-mocha": "^5.2.0",
+    "eslint-plugin-promise": "^4.0.1",
+    "gulp": "^4.0.0",
+    "gulp-babel": "^8.0.0",
     "gulp-concat": "^2.5.2",
-    "gulp-insert-lines": "0.0.4",
-    "gulp-rename": "^1.2.0",
-    "gulp-sourcemaps": "^1.3.0",
-    "mocha": "~1.17.1",
-    "run-sequence": "^1.0.2"
+    "gulp-rename": "^1.4.0",
+    "gulp-replace": "^1.0.0",
+    "gulp-sourcemaps": "^2.6.4",
+    "mocha": "^5.2.0",
+    "run-sequence": "^2.2.1"
   }
 }

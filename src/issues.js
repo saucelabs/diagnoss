@@ -1,14 +1,16 @@
 import _ from 'lodash';
 import moment from 'moment';
 import { GitHub } from './github';
+import log from 'fancy-log';
 
-export async function issueStats (repoList=[], opts={since: null}) {
+
+export async function issueStats (repoList = [], opts = {since: null}) {
   if (!opts.since) {
     throw new Error("You must provide a 'since' parameter to issueStats!");
   }
 
   if (repoList.length > 1) {
-    throw new Error("Right now you can only get issue stats for one repo");
+    throw new Error('Right now you can only get issue stats for one repo');
   }
 
   let stats = {};
@@ -20,15 +22,15 @@ export async function issueStats (repoList=[], opts={since: null}) {
   for (let repoSpec of repoList) {
     stats[repoSpec] = await statsForRepo(client, repoSpec, opts.since);
     let rawStats = _.clone(stats[repoSpec]);
-    stats[repoSpec].avgNew = getAverage(rawStats, "newIssues");
-    stats[repoSpec].avgUpdated = getAverage(rawStats, "updatedIssues");
+    stats[repoSpec].avgNew = getAverage(rawStats, 'newIssues');
+    stats[repoSpec].avgUpdated = getAverage(rawStats, 'updatedIssues');
   }
   return stats;
 }
 
 function getAverage (stats, key) {
   let total = 0, num = 0;
-  for (let [day, dayStats] of _.pairs(stats)) {
+  for (let [, dayStats] of _.pairs(stats)) {
     total += dayStats[key];
     num++;
   }
@@ -55,10 +57,8 @@ async function getNumUpdatedIssuesForDay (client, repoSpec, day) {
 }
 
 async function statsForRepo (client, repoSpec, since) {
-  let [user, repoName] = repoSpec.split('/');
-  let repo = client.repo(user, repoName);
   let curDay = moment(since);
-  console.log(`starting with ${since} / ${curDay}`);
+  log(`starting with ${since} / ${curDay}`);
   let days = [];
   let stats = {};
   while (curDay < moment(Date.now())) {

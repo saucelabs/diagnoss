@@ -4,53 +4,68 @@ var gulp = require("gulp");
 var babel = require("gulp-babel");
 var sourcemaps = require("gulp-sourcemaps");
 var rename = require("gulp-rename");
-var insert = require("gulp-insert-lines");
 var clear = require('clear');
-var Q = require('q');
-var runSequence = Q.denodeify(require('run-sequence'));
+const B = require('bluebird');
+const replace = require('gulp-replace');
+const path = require('path');
+
 
 var exitOnError = false;
 
-gulp.task("transpile", function () {
+const BABEL_OPTS = {
+  configFile: path.resolve(__dirname, '.babelrc'),
+};
+
+const SOURCEMAP_OPTS = {
+  sourceRoot: function (file) { // eslint-disable-line object-shorthand
+    // Point to source root relative to the transpiled file
+    return path.relative(path.join(file.cwd, file.path), file.base);
+  },
+  includeContent: true,
+};
+
+const renameEsX = function () {
+  return rename(function (path) {
+    path.basename = path.basename.replace(/\.es[67]$/, '');
+  });
+};
+
+gulp.task('transpile', function () {
   var mapPath = null;
   return gulp.src("src/**/*.js")
-    .pipe(rename(function (path) {
-      path.basename = path.basename.replace(".es6", "");
-      mapPath = path.basename + ".map";
-    }))
+    // .pipe(rename(function (path) {
+    //   path.basename = path.basename.replace(".es6", "");
+    //   mapPath = path.basename + ".map";
+    // }))
     .pipe(sourcemaps.init())
-    .pipe(babel({experimental: true, optional: ["runtime"], sourceMap: "inline"}))
-    .pipe(insert({
-      after: /"use strict";/,
-      lineAfter: "require('source-map-support').install();\n"
-    }))
+    .pipe(babel(BABEL_OPTS))
+    .pipe(replace(/$/, '\n\nrequire(\'source-map-support\').install();\n\n'))
+    .pipe(renameEsX())
     .pipe(sourcemaps.write("."))
     .pipe(gulp.dest("dist"));
 });
 
-gulp.task('kill-gulp', function() {
+gulp.task('kill-gulp', function () {
   process.exit(0);
 });
 
-gulp.task('clear-terminal', function() {
+gulp.task('clear-terminal', function () {
   clear();
-  return Q.delay(100);
+  return B.delay(100);
 });
 
 // gulp error handling is not very well geared toward watch
 // so we have to do that to be safe.
 // that should not be needed in gulp 4.0
-gulp.task('watch-build', function() {
-  return runSequence('clear-terminal', ['transpile']);
-});
+gulp.task('watch-build', gulp.series(['clear-terminal', 'transpile']));
 
 gulp.task('watch', function () {
   exitOnError = true;
   gulp.watch(['src/**/*.js'], ['watch-build']);
-  gulp.watch('gulpfile.js', ['clear-terminal','kill-gulp']);
+  gulp.watch('gulpfile.js', ['clear-terminal', 'kill-gulp']);
 });
 
-gulp.task('spawn-watch', ['clear-terminal'], function() {
+gulp.task('_spawn-watch', function () {
  var spawnWatch = function() {
     var proc = require('child_process').spawn('./node_modules/.bin/gulp', ['watch'], {stdio: 'inherit'});
     proc.on('close', function () {
@@ -60,5 +75,7 @@ gulp.task('spawn-watch', ['clear-terminal'], function() {
   spawnWatch();
 });
 
+gulp.task('spawn-watch', gulp.series(['clear-terminal', '_spawn-watch']));
+
 // default target is watch
-gulp.task('default', ['spawn-watch']);
+gulp.task('default', gulp.series(['spawn-watch']));

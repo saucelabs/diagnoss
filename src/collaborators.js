@@ -2,6 +2,8 @@ import _ from 'lodash';
 import moment from 'moment';
 import { GitHub } from './github';
 import { parallel } from 'asyncbox';
+import log from 'fancy-log';
+
 
 export async function collaboratorStats (repoList, collabs, t1, t2) {
   let stats = {};
@@ -23,7 +25,7 @@ export async function collaboratorStats (repoList, collabs, t1, t2) {
         issueComments = 0, issueCommentAvgLen = 0, pullsCommented = 0,
         pullComments = 0, pullCommentAvgLen = 0;
     for (let [repo, repoStats] of _.pairs(stats)) {
-      if (repo === 'all') continue;
+      if (repo === 'all') {continue;}
       commits += repoStats[c].commits;
       commitsLines += repoStats[c].commitsTotalLinesOfWork;
       issuesClosed += repoStats[c].issuesClosed;
@@ -57,8 +59,8 @@ export async function collaboratorStats (repoList, collabs, t1, t2) {
 }
 
 async function statsForRepo (client, repoSpec, collabs, t1, t2) {
-  console.error("GETTING STATS FOR: " + repoSpec);
-  console.error("==================");
+  log.error('GETTING STATS FOR: ' + repoSpec);
+  log.error('==================');
   let stats = {};
   let duration = moment.duration(t2.diff(t1));
   let days = duration.asDays() * 5 / 7; // "work days"
@@ -90,7 +92,7 @@ async function statsForRepo (client, repoSpec, collabs, t1, t2) {
       pullCommentAvgLen: prCommentStats[c].avgBody,
     };
   }
-  console.error("");
+  log.error('');
   return stats;
 }
 
@@ -113,7 +115,7 @@ async function commitsForCollabs (repo, collabs, t1, t2) {
 }
 
 function validCommit (c) {
-  if (c.commit.message.indexOf("Merge") === 0) {
+  if (c.commit.message.indexOf('Merge') === 0) {
     return false;
   }
   return true;
@@ -157,7 +159,7 @@ async function fullCommitSet (repo, commits) {
     }
     return {
       sha: f.sha,
-      linesOfWork: linesOfWork,
+      linesOfWork,
       additions: f.stats.additions,
       deletions: f.stats.deletions,
       filesChanged: f.files.length,
