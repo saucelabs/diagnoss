@@ -15,6 +15,8 @@ import log from 'fancy-log';
 
 async function main () {
   let opts = yargs.argv;
+
+  // determine the repositories to query
   let repos;
   if (opts.o) {
     repos = await getReposFromOrgs(opts.o.split(','));
@@ -23,9 +25,10 @@ async function main () {
   } else if (opts.r) {
     repos = opts.r.split(',');
   } else {
-    log.error('No action specified');
+    log.error('No repositories specified');
     return 1;
   }
+
   let fromDate = opts.t1 ? moment(opts.t1) : null;
   let toDate = opts.t2 ? moment(opts.t2) : null;
   if (opts.n) {

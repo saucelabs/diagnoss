@@ -1,16 +1,20 @@
-"use strict";
+'use strict';
 
-var gulp = require("gulp");
-var babel = require("gulp-babel");
-var sourcemaps = require("gulp-sourcemaps");
-var rename = require("gulp-rename");
-var clear = require('clear');
+const gulp = require('gulp');
+const babel = require('gulp-babel');
+const sourcemaps = require('gulp-sourcemaps');
+const rename = require('gulp-rename');
+const clear = require('clear');
 const B = require('bluebird');
 const replace = require('gulp-replace');
 const path = require('path');
+const eslint = require('gulp-eslint');
+const debug = require('gulp-debug');
+const gulpIf = require('gulp-if');
+const log = require('fancy-log');
 
 
-var exitOnError = false;
+const VERBOSE = process.env.VERBOSE === '1';
 
 const BABEL_OPTS = {
   configFile: path.resolve(__dirname, '.babelrc'),
@@ -30,19 +34,23 @@ const renameEsX = function () {
   });
 };
 
+const handleError = function (err) {
+  for (const line of `${err}`.split('\n')) {
+    log.error(line);
+  }
+  process.exit(1);
+};
+
 gulp.task('transpile', function () {
-  var mapPath = null;
-  return gulp.src("src/**/*.js")
-    // .pipe(rename(function (path) {
-    //   path.basename = path.basename.replace(".es6", "");
-    //   mapPath = path.basename + ".map";
-    // }))
+  return gulp.src(['*.js', 'src/**/*.js', 'test/**/*.js', '!gulpfile.js'], {base: './'})
+    .pipe(gulpIf(VERBOSE, debug()))
     .pipe(sourcemaps.init())
     .pipe(babel(BABEL_OPTS))
+    .on('error', handleError)
     .pipe(replace(/$/, '\n\nrequire(\'source-map-support\').install();\n\n'))
     .pipe(renameEsX())
-    .pipe(sourcemaps.write("."))
-    .pipe(gulp.dest("dist"));
+    .pipe(sourcemaps.write(SOURCEMAP_OPTS))
+    .pipe(gulp.dest('dist'));
 });
 
 gulp.task('kill-gulp', function () {
@@ -60,14 +68,13 @@ gulp.task('clear-terminal', function () {
 gulp.task('watch-build', gulp.series(['clear-terminal', 'transpile']));
 
 gulp.task('watch', function () {
-  exitOnError = true;
   gulp.watch(['src/**/*.js'], ['watch-build']);
   gulp.watch('gulpfile.js', ['clear-terminal', 'kill-gulp']);
 });
 
 gulp.task('_spawn-watch', function () {
- var spawnWatch = function() {
-    var proc = require('child_process').spawn('./node_modules/.bin/gulp', ['watch'], {stdio: 'inherit'});
+  const spawnWatch = function () {
+    let proc = require('child_process').spawn('./node_modules/.bin/gulp', ['watch'], {stdio: 'inherit'});
     proc.on('close', function () {
       spawnWatch();
     });
@@ -79,3 +86,16 @@ gulp.task('spawn-watch', gulp.series(['clear-terminal', '_spawn-watch']));
 
 // default target is watch
 gulp.task('default', gulp.series(['spawn-watch']));
+
+gulp.task('eslint', function () {
+  let opts = {
+    fix: process.argv.includes('--fix'),
+  };
+  return gulp
+    .src(['**/*.js', '!node_modules/**', '!dist/**'])
+    .pipe(gulpIf(VERBOSE, debug()))
+    .pipe(eslint(opts))
+    .pipe(eslint.format())
+    .pipe(eslint.failAfterError())
+    .pipe(gulpIf((file) => file.eslint && file.eslint.fixed, gulp.dest(process.cwd())));
+});
